@@ -36,4 +36,4 @@ This script adds lines to GCode for controlling an external extruder (for exampl
 ## Other Resources
 
 - Data.py contains an example list object containting layers of G-Code similar to what would be passed by Cura. This is for debug purposes.
-- Debug.py contains a Script class to mimic the Cura Script class for debug purposes. This means you don't have to open Cura to test a script. To run the debug version of each of the scripts, simple place Data.py and Debug.py in the same folder as the script then running the script.
+- Debug.py contains a Script class to mimic the Cura Script class for debug purposes. This means you don't have to open Cura to test a script. To run the debug version of each of the scripts, simply place Data.py and Debug.py in the same folder as the script then running the script. See existing scripts in this repository for how to write a script in a way that works for Debug.

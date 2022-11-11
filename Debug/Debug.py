@@ -3,7 +3,7 @@ from Data import gcode
 class Script:
     def __init__(self):
         self.gcode = gcode
-        self.filePath = r"C:\Users\ms-joyce\OneDrive - UWE Bristol\Projects\22-10 Cura Scripts\PostProcessingPlugin\scripts\Debug.gcode"
+        self.filePath = r"" # enter file path of where you want the debug gcode to save
         self.KeyValue = {}
 
     def getSettingValueByKey(self,s):

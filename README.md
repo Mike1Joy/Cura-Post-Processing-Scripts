@@ -1,4 +1,4 @@
-# Cura-Post-Processing-Scripts
+# Cura Post Processing Scripts
 
 Post processing scripts for Cura 4.x and 5.x. When active, these Python scripts edit the GCode produced by Cura.
 

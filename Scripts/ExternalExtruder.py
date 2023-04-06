@@ -37,7 +37,7 @@ class ExternalExtruder(Script):
                     "label": "Extrude GCode",
                     "description": "GCode to insert when extruding forward.",
                     "type": "str",
-                    "default_value": "M62 P1 M62 P0; Start Extruder",
+                    "default_value": "M63 P0 M63 P1; Start Extruder",
                     "enabled": "EXRD_"
                 },
                 "EXRD_STOPPED":
@@ -45,7 +45,7 @@ class ExternalExtruder(Script):
                     "label": "Stop Extrude GCode",
                     "description": "GCode to insert when extruding has stopped.",
                     "type": "str",
-                    "default_value": "M63 P0; Stop Extruder",
+                    "default_value": "M62 P0 M62 P1; Stop Extruder",
                     "enabled": "EXRD_"
                 },
                 "EXRD_BACKWARDS":
@@ -53,7 +53,7 @@ class ExternalExtruder(Script):
                     "label": "Retract GCode",
                     "description": "GCode to insert when extruding backwards.",
                     "type": "str",
-                    "default_value": "M63 P1 M62 P0; Start Retracting",
+                    "default_value": "M63 P0 M63 P1; Start Extruder",
                     "enabled": "EXRD_"
                 },
                 "GANT_":
@@ -61,7 +61,7 @@ class ExternalExtruder(Script):
                     "label": "Gantry Move",
                     "description": "Add GCode whenever the gantry state changes (moves or stops).",
                     "type": "bool",
-                    "default_value": true
+                    "default_value": false
                 },
                 "GANT_MOVING":
                 {
@@ -92,7 +92,7 @@ class ExternalExtruder(Script):
                     "label": "Add Dwells",
                     "description": "Add a dwell when extruding but gantry is not moving. Eg 'G1 E1.0'",
                     "type": "bool",
-                    "default_value": false
+                    "default_value": true
                 },
                 "DWELL_EXTR_SPEED":
                 {
@@ -101,7 +101,23 @@ class ExternalExtruder(Script):
                     "unit": "mm/s",
                     "type": "float",
                     "minimum_value": "0",
-                    "default_value": 15.0,
+                    "default_value": 50.0,
+                    "enabled": "DWELL"
+                },
+                "DWELL_FORWARD":
+                {
+                    "label": "Dwell Forward",
+                    "description": "Dwell when extruding forward.",
+                    "type": "bool",
+                    "default_value": true,
+                    "enabled": "DWELL"
+                },
+                "DWELL_BACKWARD":
+                {
+                    "label": "Dwell Backward",
+                    "description": "Dwell when extruding backward (retracting).",
+                    "type": "bool",
+                    "default_value": false,
                     "enabled": "DWELL"
                 },
                 "REMOVE_E":
@@ -131,14 +147,14 @@ class ExternalExtruder(Script):
                     "label": "Header GCode",
                     "description": "Header to add at top of file.",
                     "type": "str",
-                    "default_value": "M63 P0 M63 P1 M63 P2 ;Turn all pins off"
+                    "default_value": "M62 P0 M62 P1; Stop Extruder"
                 },
                 "FOOTER":
                 {
                     "label": "Footer GCode",
                     "description": "Footer to add at end of file.",
                     "type": "str",
-                    "default_value": "M63 P0 M63 P1 M63 P2 ;Turn all pins off"
+                    "default_value": "M62 P0 M62 P1; Stop Extruder"
                 }
             }
         }"""
@@ -165,6 +181,8 @@ class ExternalExtruder(Script):
 
         DWELL = self.getSettingValueByKey("DWELL")
         DWELL_EXTR_SPEED = self.getSettingValueByKey("DWELL_EXTR_SPEED")
+        DWELL_FORWARD = self.getSettingValueByKey("DWELL_FORWARD")
+        DWELL_BACKWARD = self.getSettingValueByKey("DWELL_BACKWARD")
 
         REMOVE_E = self.getSettingValueByKey("REMOVE_E")
 
@@ -175,6 +193,9 @@ class ExternalExtruder(Script):
 
         HEADER = self.getSettingValueByKey("HEADER")
         FOOTER = self.getSettingValueByKey("FOOTER")
+
+        E_Absolute = False
+        E_Last = 0.0
 
         # Go through GCode
         for layer_number, layer in enumerate(data):
@@ -192,11 +213,23 @@ class ExternalExtruder(Script):
                 if len(line_comment) > 1:
                     comment = ";"+line_comment[1]
 
+                if "M82" in lines[line]:
+                    E_Absolute = True
+                elif "M83" in lines[line]:
+                    E_Absolute = False
+                
+                this_last_E = E_Last
+                
                 if any(G in lines[line] for G in CODES):
                     if "E" in lines[line]:
                         UpToE = lines[line].split("E",maxsplit=1)
                         EOnwards = UpToE[-1].split(maxsplit=1)
                         E_value = float(EOnwards[0])
+
+                        this_last_E = E_value
+
+                        if E_Absolute:
+                            E_value -= E_Last
 
                         if REMOVE_E:
                             lines[line] = UpToE[0] + ("\n" if len(EOnwards) == 1 else EOnwards[1])
@@ -212,7 +245,8 @@ class ExternalExtruder(Script):
                         this_G_STATE = G_MOVE
                     else:
                         this_G_STATE = G_STOP
-                        Dwell_time = abs(E_value)/DWELL_EXTR_SPEED
+                        if (E_value < 0 and DWELL_BACKWARD) or (E_value > 0 and DWELL_FORWARD):
+                            Dwell_time = abs(E_value)/DWELL_EXTR_SPEED
                     
                     # add lines to gcode in reverse order
                     if DWELL and this_E_STATE != E_STOP and this_G_STATE == G_STOP and Dwell_time > 0:
@@ -225,7 +259,9 @@ class ExternalExtruder(Script):
                     if (EVERYLINE or this_G_STATE != G_STATE) and GANT_:
                         G_STATE = this_G_STATE
                         lines[line] = GANT[G_STATE] + lines[line]
-            
+
+                E_Last = this_last_E
+
                 if comment:
                     lines[line] += comment
 

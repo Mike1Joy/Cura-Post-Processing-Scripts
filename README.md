@@ -5,6 +5,8 @@ Post processing scripts for Cura 4.x and 5.x. When active, these Python scripts 
 
 ## Installation
 
+First make sure Cura is closed, then copy and paste the script into the relavent folder:
+
 ### Cura 4.x (Windows)
 
 Place scripts in C:\Program Files\Ultimaker Cura 4.x\plugins\PostProcessingPlugin\scripts
